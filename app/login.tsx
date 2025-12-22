@@ -27,10 +27,7 @@ export default function LoginScreen() {
     router.replace('/(tabs)');
   };
 
-  const handleForgotPassword = () => {
-    console.log('Forgot password pressed');
-  };
-
+  
   const handleCreateAccount = () => {
     router.push('/signup');
   };
@@ -97,10 +94,6 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        {/* Forgot Password */}
-        <Pressable onPress={handleForgotPassword}>
-          <Text style={styles.forgotPassword}>Forgot Password?</Text>
-        </Pressable>
 
         {/* Login Button */}
         <Pressable
@@ -215,12 +208,6 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     paddingHorizontal: 16,
-  },
-  forgotPassword: {
-    fontSize: 14,
-    color: '#10B981',
-    marginBottom: 32,
-    fontWeight: '500',
   },
   loginButton: {
     backgroundColor: '#10B981',
