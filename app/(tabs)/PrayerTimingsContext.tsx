@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useState } from "react";
 
 type TimingsType = {
   Fajr: string;
@@ -10,12 +10,12 @@ type TimingsType = {
 };
 
 const defaultTimings: TimingsType = {
-  Fajr: '05:30 AM',
-  Zuhr: '01:15 PM',
-  Asr: '04:45 PM',
-  Maghrib: '06:30 PM',
-  Isha: '08:00 PM',
-  Jummah: '01:45 PM', // ✅ Default Jummah Time
+  Fajr: "05:30 AM",
+  Zuhr: "01:15 PM",
+  Asr: "04:45 PM",
+  Maghrib: "06:30 PM",
+  Isha: "08:00 PM",
+  Jummah: "01:45 PM", // ✅ Default Jummah Time
 };
 
 const PrayerTimingsContext = createContext<any>(null);
@@ -30,4 +30,6 @@ export const PrayerTimingsProvider = ({ children }: any) => {
   );
 };
 
-export const usePrayerTimings = () => useContext(PrayerTimingsContext);
+export default function PrayerTimingsContextRoute() {
+  return null;
+}

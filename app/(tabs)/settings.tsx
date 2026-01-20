@@ -1,143 +1,182 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Switch, 
-  TouchableOpacity, 
-  ScrollView, 
-  SafeAreaView, 
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
   StatusBar,
-  Alert
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router'; // 1. Import Router
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function SettingsScreen() {
-  const router = useRouter(); // 2. Initialize Router
-  
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const router = useRouter();
+  const [user, setUser] = useState<{ name: string; email: string } | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+
+  // UI States (Switches ke liye)
+  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
-          style: "destructive", 
-          onPress: () => {
-            router.replace('/login');
-          }
-        }
-      ]
-    );
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("userData");
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.log("Error loading user:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleLogout = async () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("userToken");
+          await AsyncStorage.removeItem("userData");
+          router.replace("/login");
+        },
+      },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#10B981" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar backgroundColor="#10B981" barStyle="light-content" />
 
-      <LinearGradient
-        colors={['#10B981', '#059669']}
-        style={styles.headerContainer}
+      {/* 1. Green Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={{ width: 24 }} />{" "}
+        {/* Empty view to balance center title */}
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <SafeAreaView>
-          <View style={styles.headerContent}>
-            {/* 3. The Back Button Logic */}
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => router.back()} // <--- Returns to Home
-            >
-              <Feather name="arrow-left" size={24} color="white" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Settings</Text>
+        {/* 2. Profile Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person-outline" size={30} color="white" />
           </View>
-        </SafeAreaView>
-      </LinearGradient>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* Profile Card */}
-        <View style={styles.sectionCard}>
-          <View style={styles.profileRow}>
-            <View style={styles.avatarContainer}>
-              <Feather name="user" size={32} color="white" />
-            </View>
-            <View>
-              <Text style={styles.profileName}>Muhammad Ahmad</Text>
-              <Text style={styles.profileEmail}>ahmad@example.com</Text>
-            </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.userName}>{user?.name || "Guest User"}</Text>
+            <Text style={styles.userEmail}>
+              {user?.email || "guest@example.com"}
+            </Text>
           </View>
         </View>
 
-        {/* App Settings */}
-        <Text style={styles.sectionHeader}>App Settings</Text>
-        <View style={styles.sectionCard}>
-          
+        {/* 3. App Settings Section */}
+        <Text style={styles.sectionTitle}>App Settings</Text>
+        <View style={styles.settingsGroup}>
+          {/* Dark Mode */}
           <View style={styles.settingRow}>
-            <View style={styles.rowLabel}>
-              <Feather name="moon" size={20} color="#4B5563" style={styles.rowIcon} />
+            <View style={styles.settingIconRow}>
+              <Ionicons name="moon-outline" size={22} color="#4B5563" />
               <Text style={styles.settingText}>Dark Mode</Text>
             </View>
             <Switch
-              value={isDarkMode}
-              onValueChange={setIsDarkMode}
-              trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-              thumbColor={'white'}
+              value={darkMode}
+              onValueChange={setDarkMode}
+              trackColor={{ false: "#E5E7EB", true: "#10B981" }}
+              thumbColor={darkMode ? "white" : "#f4f3f4"}
             />
           </View>
 
           <View style={styles.divider} />
 
+          {/* Notifications */}
           <View style={styles.settingRow}>
-            <View style={styles.rowLabel}>
-              <Feather name="bell" size={20} color="#4B5563" style={styles.rowIcon} />
+            <View style={styles.settingIconRow}>
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color="#4B5563"
+              />
               <Text style={styles.settingText}>Prayer Notifications</Text>
             </View>
             <Switch
               value={notifications}
               onValueChange={setNotifications}
-              trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-              thumbColor={'white'}
+              trackColor={{ false: "#E5E7EB", true: "#10B981" }}
+              thumbColor={notifications ? "white" : "#f4f3f4"}
             />
           </View>
 
           <View style={styles.divider} />
 
+          {/* Language */}
           <TouchableOpacity style={styles.settingRow}>
-            <View style={styles.rowLabel}>
-              <Feather name="globe" size={20} color="#4B5563" style={styles.rowIcon} />
+            <View style={styles.settingIconRow}>
+              <Ionicons name="globe-outline" size={22} color="#4B5563" />
               <Text style={styles.settingText}>Language</Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.valueText}>English</Text>
-            </View>
+            <Text style={styles.settingValue}>English</Text>
           </TouchableOpacity>
         </View>
 
-        {/* About App */}
-        <View style={[styles.sectionCard, { marginTop: 24 }]}>
+        {/* 4. About App Section */}
+        <View style={styles.settingsGroup}>
           <TouchableOpacity style={styles.settingRow}>
-            <View style={styles.rowLabel}>
-              <Feather name="info" size={20} color="#4B5563" style={styles.rowIcon} />
+            <View style={styles.settingIconRow}>
+              <Ionicons
+                name="information-circle-outline"
+                size={22}
+                color="#4B5563"
+              />
               <Text style={styles.settingText}>About App</Text>
             </View>
-            <Text style={styles.valueText}>v1.0</Text>
+            <Text style={styles.settingValue}>v1.0</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Feather name="log-out" size={20} color="white" style={{ marginRight: 8 }} />
+        {/* 5. Logout Button */}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color="white"
+            style={{ marginRight: 8 }}
+          />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
-
-        <Text style={styles.footerText}>© 2024 Smart Jamat Finder. All rights reserved.</Text>
-
       </ScrollView>
     </View>
   );
@@ -146,120 +185,131 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6", // Light gray background
   },
-  headerContainer: {
-    paddingTop: 50,
-    paddingBottom: 24,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  // Header Styles
+  header: {
+    backgroundColor: "#10B981", // Brand Green
+    height: 100, // Taller header
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingBottom: 20,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: "space-between",
   },
   backButton: {
-    marginRight: 16,
+    padding: 5,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    color: "white",
+    fontSize: 20,
+    fontWeight: "bold",
   },
   scrollContent: {
     padding: 20,
   },
-  sectionHeader: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 12,
-    marginTop: 24,
-  },
-  sectionCard: {
-    backgroundColor: 'white',
+  // Profile Card Styles
+  profileCard: {
+    backgroundColor: "white",
     borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 24,
+    // Shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 10,
     elevation: 2,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   avatarContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
-  profileName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  profileInfo: {
+    flex: 1,
   },
-  profileEmail: {
+  userName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  userEmail: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
+  },
+  // Section Styles
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  settingsGroup: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
   settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
   },
-  rowLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rowIcon: {
-    marginRight: 12,
+  settingIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   settingText: {
     fontSize: 16,
-    color: '#374151',
-    fontWeight: '500',
+    color: "#374151",
+    marginLeft: 12,
   },
-  valueText: {
+  settingValue: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   divider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
-    marginVertical: 4,
+    backgroundColor: "#F3F4F6",
   },
+  // Logout Button
   logoutButton: {
-    backgroundColor: '#EF4444',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#EF4444", // Red
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 16,
     borderRadius: 12,
-    marginTop: 32,
-    shadowColor: '#EF4444',
+    marginTop: 10,
+    shadowColor: "#EF4444",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   logoutText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  footerText: {
-    textAlign: 'center',
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginTop: 24,
-    marginBottom: 40,
+    fontWeight: "600",
   },
 });
