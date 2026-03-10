@@ -1,253 +1,220 @@
-import React from 'react';
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-  Alert,
+  ImageBackground,
   Linking,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { usePrayerTimings } from './PrayerTimingsContext';
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function MosqueDetails() {
   const router = useRouter();
-  const { name, location, distance } = useLocalSearchParams();
-  const { timings } = usePrayerTimings();
+  const params = useLocalSearchParams();
 
-  const handleDirections = () => {
-    const query = encodeURIComponent(location as string);
-    Linking.openURL(
-      `https://www.google.com/maps/search/?api=1&query=${query}`
-    );
+  // 1. Data extraction
+  const { name, location, lat, lon, dist, _id } = params;
+
+  // 2. Timings parsing
+  let timings: any = {
+    Fajr: "--",
+    Zuhr: "--",
+    Asr: "--",
+    Maghrib: "--",
+    Isha: "--",
   };
+  if (params.timings) {
+    try {
+      timings = JSON.parse(params.timings as string);
+    } catch (e) {
+      console.log("Error parsing timings");
+    }
+  }
 
-  const handleReminder = () => {
-    Alert.alert('Reminder', 'Reminder feature coming soon');
+  const openMaps = () => {
+    const destination = `${lat},${lon}`;
+    const label = encodeURI(name as string);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${label}@${destination}`,
+      android: `geo:0,0?q=${destination}(${label})`,
+    });
+
+    if (url) {
+      Linking.canOpenURL(url).then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL(`http://maps.google.com/?q=${destination}`);
+        }
+      });
+    }
   };
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#10B981', '#059669']} style={styles.header}>
-        <SafeAreaView>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color="white" />
-          </TouchableOpacity>
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
 
-          <Text style={styles.title}>{name}</Text>
-          <Text style={styles.sub}>
-            {location} • {distance} away
-          </Text>
-        </SafeAreaView>
-      </LinearGradient>
-
-      {/* ACTION BUTTONS */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.directionBtn} onPress={handleDirections}>
-          <Feather name="navigation" size={18} color="white" />
-          <Text style={styles.directionText}>Get Directions</Text>
+      <ImageBackground
+        source={{
+          uri: "https://images.unsplash.com/photo-1564121211835-e88c852648ab?w=800",
+        }}
+        style={styles.headerImage}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.reminderBtn} onPress={handleReminder}>
-          <Feather name="bell" size={18} color="#10B981" />
-          <Text style={styles.reminderText}>Set Reminder</Text>
-        </TouchableOpacity>
-      </View>
+      </ImageBackground>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Today's Jamat Timings</Text>
+        <Text style={styles.name}>{name}</Text>
+        <View style={styles.row}>
+          <Ionicons name="location-outline" size={16} color="#10B981" />
+          <Text style={styles.locationText}>{location}</Text>
+        </View>
+        <Text style={styles.distBadge}>{dist} km away</Text>
 
-        {/* ✅ Normal Prayer Timings */}
-        {Object.entries(timings)
-          .filter(([key]) => key !== 'Jummah')
-          .map(([key, value]) => (
-            <View key={key} style={styles.timingRow}>
-              <Text style={styles.prayerName}>{key}</Text>
-              <Text style={styles.prayerTime}>{value}</Text>
-            </View>
-          ))}
-
-        {/* ✅ Jummah Special Card */}
-        <Text style={styles.sectionTitle}>Friday Jummah</Text>
-
-        <View style={styles.jummahCard}>
-          <Text style={styles.jummahText}>Jummah Prayer</Text>
-          <Text style={styles.jummahTime}>{timings.Jummah}</Text>
+        <View style={styles.btnRow}>
+          <TouchableOpacity style={styles.directionBtn} onPress={openMaps}>
+            <Feather name="navigation" size={18} color="white" />
+            <Text style={styles.btnText}>Get Directions</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.reminderBtn}>
+            <Feather name="bell" size={18} color="#10B981" />
+            <Text style={[styles.btnText, { color: "#10B981" }]}>
+              Set Reminder
+            </Text>
+          </TouchableOpacity>
         </View>
 
+        <View style={styles.timeCard}>
+          <Text style={styles.cardTitle}>Today's Jamat Timings</Text>
+          <TimeItem label="Fajr" time={timings.Fajr} strip />
+          <TimeItem label="Zuhr" time={timings.Zuhr} />
+          <TimeItem label="Asr" time={timings.Asr} strip />
+          <TimeItem label="Maghrib" time={timings.Maghrib} />
+          <TimeItem label="Isha" time={timings.Isha} strip />
+        </View>
+
+        {/* 👇 ADMIN LINK FIXED */}
         <TouchableOpacity
-          onPress={() => router.push('/admin-login')}
-          style={styles.adminBtn}
+          style={styles.adminLinkContainer}
+          onPress={() =>
+            router.push({
+              pathname: "/admin-login",
+              params: { mosqueId: _id },
+            })
+          }
         >
-          <Text style={styles.adminText}>
-            Mosque Admin? Update Timings
+          <Text style={styles.adminLinkText}>
+            Mosque Admin? Update Jamat Timings
           </Text>
         </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
 }
 
+const TimeItem = ({ label, time, strip }: any) => (
+  <View style={[styles.timeRow, strip && { backgroundColor: "#F0FDF4" }]}>
+    <Text style={styles.label}>{label}</Text>
+    <Text style={styles.timeValue}>{time}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
+  container: { flex: 1, backgroundColor: "white" },
+  headerImage: { width: "100%", height: 220, paddingTop: 50, paddingLeft: 20 },
+  backBtn: {
+    backgroundColor: "white",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  /* ===== HEADER ===== */
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 40, // ✅ space for action buttons
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  content: {
+    padding: 20,
+    backgroundColor: "white",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -30,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: 'white',
-    marginTop: 12,
-  },
-
-  sub: {
-    color: '#D1FAE5',
-    marginTop: 4,
+  name: { fontSize: 22, fontWeight: "bold", color: "#1F2937" },
+  row: { flexDirection: "row", alignItems: "center", marginTop: 5 },
+  locationText: { color: "gray", marginLeft: 5, fontSize: 14 },
+  distBadge: {
+    color: "#10B981",
+    fontWeight: "bold",
+    marginTop: 10,
     fontSize: 14,
   },
-
-  /* ===== ACTION BUTTONS ===== */
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#F3F4F6',
+  btnRow: {
+    flexDirection: "row",
+    marginTop: 20,
+    justifyContent: "space-between",
   },
-
   directionBtn: {
     flex: 1,
-    backgroundColor: '#10B981',
-    paddingVertical: 14,
-    borderRadius: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "#10B981",
+    padding: 15,
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "center",
+    marginRight: 10,
+    alignItems: "center",
   },
-
-  directionText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
   reminderBtn: {
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#10B981',
-    paddingVertical: 14,
-    borderRadius: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#10B981",
+    padding: 15,
+    borderRadius: 10,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
-
-  reminderText: {
-    color: '#10B981',
-    fontWeight: '700',
-    fontSize: 15,
+  btnText: { color: "white", fontWeight: "bold", marginLeft: 8 },
+  timeCard: {
+    marginTop: 30,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 15,
+    padding: 15,
   },
-
-  /* ===== CONTENT ===== */
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#374151",
   },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    marginTop: 10,
-    color: '#1F2937',
-  },
-
-  timingRow: {
-    backgroundColor: '#ECFDF5',
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 8,
   },
-
-  prayerName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#065F46',
+  label: { fontWeight: "600", color: "#4B5563" },
+  timeValue: { color: "#10B981", fontWeight: "bold" },
+  // Missing styles added here
+  adminLinkContainer: {
+    marginTop: 30,
+    alignItems: "center",
+    paddingBottom: 20,
   },
-
-  prayerTime: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-
-  /* ===== JUMMAH ===== */
-  jummahCard: {
-    backgroundColor: '#DCFCE7',
-    borderRadius: 16,
-    padding: 18,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#059669',
-  },
-
-  jummahText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-
-  jummahTime: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#047857',
-  },
-
-  /* ===== ADMIN LINK ===== */
-  adminBtn: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-
-  adminText: {
-    color: '#10B981',
-    fontWeight: '600',
+  adminLinkText: {
+    color: "#10B981",
+    textDecorationLine: "underline",
     fontSize: 14,
+    fontWeight: "600",
   },
 });
-

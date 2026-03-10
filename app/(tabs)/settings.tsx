@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   );
   const [loading, setLoading] = useState(true);
 
-  // UI States (Switches ke liye)
+  // UI States (Switches)
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
 
@@ -51,6 +51,7 @@ export default function SettingsScreen() {
         onPress: async () => {
           await AsyncStorage.removeItem("userToken");
           await AsyncStorage.removeItem("userData");
+          // Navigate to login and replace history
           router.replace("/login");
         },
       },
@@ -77,9 +78,11 @@ export default function SettingsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 24 }} />{" "}
+
         {/* Empty view to balance center title */}
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView
@@ -89,7 +92,7 @@ export default function SettingsScreen() {
         {/* 2. Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <Ionicons name="person-outline" size={30} color="white" />
+            <Ionicons name="person" size={30} color="white" />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.userName}>{user?.name || "Guest User"}</Text>
@@ -149,6 +152,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* 4. About App Section */}
+        <Text style={styles.sectionTitle}>Support</Text>
         <View style={styles.settingsGroup}>
           <TouchableOpacity style={styles.settingRow}>
             <View style={styles.settingIconRow}>
@@ -159,7 +163,7 @@ export default function SettingsScreen() {
               />
               <Text style={styles.settingText}>About App</Text>
             </View>
-            <Text style={styles.settingValue}>v1.0</Text>
+            <Text style={styles.settingValue}>v1.0.0</Text>
           </TouchableOpacity>
         </View>
 
@@ -177,6 +181,9 @@ export default function SettingsScreen() {
           />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        {/* Extra space at bottom */}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -209,6 +216,7 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 20,
     fontWeight: "bold",
+    paddingBottom: 2,
   },
   scrollContent: {
     padding: 20,

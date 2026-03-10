@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
-import { PrayerTimingsProvider } from './PrayerTimingsContext';
+import { Stack } from "expo-router";
+import { PrayerTimingsProvider } from "../../context/PrayerTimingsContext";
 
 export default function RootLayout() {
   return (

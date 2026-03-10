@@ -1,169 +1,209 @@
-import React from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
   FlatList,
-  TouchableOpacity,
-  SafeAreaView,
   StatusBar,
-} from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-
-interface MosqueData {
-  id: string;
-  name: string;
-  distance: string;
-  location: string;
-  nextPrayer: string;
-}
-
-const MOSQUES_DATA: MosqueData[] = [
-  {
-    id: '1',
-    name: 'Masjid Al-Noor',
-    distance: '0.5 km',
-    location: 'Block 15, Gulistan-e-Johar',
-    nextPrayer: 'Asr - 4:45 PM',
-  },
-  {
-    id: '2',
-    name: 'Jamia Masjid Baitul Mukarram',
-    distance: '1.2 km',
-    location: 'Gulshan-e-Iqbal',
-    nextPrayer: 'Asr - 4:50 PM',
-  },
-  {
-    id: '3',
-    name: 'Masjid Bilal',
-    distance: '1.8 km',
-    location: 'Buffer Zone',
-    nextPrayer: 'Asr - 4:45 PM',
-  },
-  {
-    id: '4',
-    name: 'Masjid-e-Tooba',
-    distance: '2.3 km',
-    location: 'Defence Housing Authority',
-    nextPrayer: 'Asr - 5:00 PM',
-  },
-  {
-    id: '5',
-    name: 'Grand Jamia Masjid',
-    distance: '3.1 km',
-    location: 'Bahria Town',
-    nextPrayer: 'Asr - 4:55 PM',
-  },
-];
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { BASE_URL } from "../../config"; // Centralized Config Import
 
 export default function MosquesScreen() {
   const router = useRouter();
+  const [nearbyMosques, setNearbyMosques] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [region, setRegion] = useState({
+    latitude: 24.9204,
+    longitude: 67.101,
+    latitudeDelta: 0.1,
+    longitudeDelta: 0.1,
+  });
 
-  const renderMosqueCard = ({ item }: { item: MosqueData }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.mosqueName}>{item.name}</Text>
-        <Text style={styles.distanceText}>{item.distance}</Text>
-      </View>
+  const getDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
-      <View style={styles.infoRow}>
-        <Feather name="map-pin" size={14} color="#6B7280" />
-        <Text style={styles.infoText}>{item.location}</Text>
-      </View>
+  useEffect(() => {
+    let isMounted = true;
 
-      <View style={styles.infoRow}>
-        <Feather name="clock" size={14} color="#10B981" />
-        <Text style={styles.prayerText}>{item.nextPrayer}</Text>
-      </View>
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Using BASE_URL instead of hardcoded IP
+        const response = await axios.get(`${BASE_URL}/api/mosques`, {
+          timeout: 10000,
+        });
 
-      <TouchableOpacity
-        style={styles.detailsButton}
-        onPress={() =>
-          router.push({
-            pathname: '/mosque-details',
-            params: {
-              name: item.name,
-              location: item.location,
-              distance: item.distance,
-            },
-          })
+        if (!isMounted) return;
+        const realMosquesData = response.data;
+
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        let userLat = 24.9204;
+        let userLon = 67.101;
+
+        if (status === "granted") {
+          let loc = await Location.getCurrentPositionAsync({});
+          userLat = loc.coords.latitude;
+          userLon = loc.coords.longitude;
+
+          setRegion({
+            latitude: userLat,
+            longitude: userLon,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
         }
-      >
-        <Feather name="navigation" size={16} color="#10B981" />
-        <Text style={styles.detailsButtonText}>View Details</Text>
-      </TouchableOpacity>
-    </View>
-  );
+
+        const processed = realMosquesData
+          .map((m: any) => {
+            const dist = getDistance(userLat, userLon, m.lat, m.lon);
+            return { ...m, dist: dist.toFixed(1) };
+          })
+          .sort((a: any, b: any) => parseFloat(a.dist) - parseFloat(b.dist));
+
+        setNearbyMosques(processed);
+      } catch (error: any) {
+        if (!isMounted) return;
+        console.error("Data Fetch Error: ", error.message);
+        setNearbyMosques([]);
+        alert(
+          "Unable to connect to the server. Please check your network and try again.",
+        );
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar backgroundColor="#10B981" barStyle="light-content" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={{ padding: 5 }}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <View style={{ marginLeft: 15 }}>
+          <Text style={styles.headerTitle}>Nearby Mosques</Text>
+          <Text style={styles.headerSub}>
+            {nearbyMosques.length} mosques from Database
+          </Text>
+        </View>
+      </View>
 
-      <LinearGradient colors={['#10B981', '#059669']} style={styles.header}>
-        <SafeAreaView>
-          <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Feather name="arrow-left" size={24} color="white" />
-            </TouchableOpacity>
+      {loading ? (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator size="large" color="#10B981" />
+          <Text style={{ marginTop: 10, color: "gray" }}>
+            Loading from Database...
+          </Text>
+        </View>
+      ) : (
+        <>
+          <MapView
+            style={styles.map}
+            provider={PROVIDER_GOOGLE}
+            region={region}
+            showsUserLocation={true}
+          >
+            {nearbyMosques.map((m, index) => (
+              <Marker
+                key={m._id}
+                coordinate={{ latitude: m.lat, longitude: m.lon }}
+                title={m.name}
+                pinColor={index === 0 ? "green" : "red"}
+              />
+            ))}
+          </MapView>
 
-            <View>
-              <Text style={styles.headerTitle}>Nearby Mosques</Text>
-              <Text style={styles.headerSubtitle}>5 mosques found</Text>
-            </View>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
-
-      <FlatList
-        data={MOSQUES_DATA}
-        renderItem={renderMosqueCard}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
-      />
-      
+          <FlatList
+            data={nearbyMosques}
+            contentContainerStyle={{ padding: 15 }}
+            renderItem={({ item, index }) => (
+              <TouchableOpacity
+                style={[styles.card, index === 0 && styles.nearestCard]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/mosque-details",
+                    params: { ...item, timings: JSON.stringify(item.timings) },
+                  })
+                }
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.mosqueName}>{item.name}</Text>
+                  <Text style={styles.distText}>{item.dist} km</Text>
+                </View>
+                <Text style={styles.addressText}>{item.location}</Text>
+                <Text style={styles.viewDetails}>View Details</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
+    backgroundColor: "#10B981",
+    padding: 20,
     paddingTop: 50,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-  headerSubtitle: { fontSize: 14, color: '#D1FAE5' },
+  headerTitle: { color: "white", fontSize: 18, fontWeight: "bold" },
+  headerSub: { color: "#D1FAE5", fontSize: 12 },
+  map: { width: "100%", height: "35%" },
   card: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 12,
+    elevation: 2,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  mosqueName: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
-  distanceText: { color: '#10B981', fontWeight: '600' },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
-  infoText: { color: '#6B7280' },
-  prayerText: { fontWeight: '500' },
-  detailsButton: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#10B981',
-    borderRadius: 8,
-    padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#ECFDF5',
+  nearestCard: { borderColor: "#10B981", borderWidth: 1.5 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between" },
+  mosqueName: { fontWeight: "bold", fontSize: 16 },
+  distText: { color: "#10B981", fontWeight: "bold" },
+  addressText: { color: "gray", fontSize: 12, marginTop: 5, marginBottom: 10 },
+  viewDetails: {
+    color: "#10B981",
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderColor: "#eee",
   },
-  detailsButtonText: { color: '#10B981', fontWeight: '600' },
 });

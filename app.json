@@ -20,7 +20,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.FYP"
+      "package": "com.anonymous.FYP",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",
